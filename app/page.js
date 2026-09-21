@@ -157,19 +157,20 @@ function Sidebar({ active, setActive, onLogout }) {
 }
 
 /* ── Order Detail Modal ── */
-function OrderModal({ orderId, apiGet, apiPatch, onClose }) {
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+function OrderModal({ initialOrder, apiGet, apiPatch, onClose }) {
+  const [order, setOrder] = useState(initialOrder || null);
+  const [loading, setLoading] = useState(!initialOrder);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [newStatus, setNewStatus] = useState("");
+  const [newStatus, setNewStatus] = useState(initialOrder?.status || "");
 
   useEffect(() => {
-    apiGet(`section=order&id=${orderId}`).then((d) => {
+    if (initialOrder) return;
+    apiGet(`section=order&id=${initialOrder?.id}`).then((d) => {
       setOrder(d.order || null);
       setNewStatus(d.order?.status || "");
       setLoading(false);
     });
-  }, [orderId, apiGet]);
+  }, [initialOrder, apiGet]);
 
   async function updateStatus() {
     if (!newStatus || newStatus === order.status) return;
@@ -183,7 +184,7 @@ function OrderModal({ orderId, apiGet, apiPatch, onClose }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", width: "100%", maxWidth: "640px", maxHeight: "90vh", overflow: "auto" }}>
         <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontWeight: 800, fontSize: "1rem" }}>Παραγγελία {order ? `#${order.number}` : "…"}</span>
+          <span style={{ fontWeight: 800, fontSize: "1rem" }}>Παραγγελία #{order?.number || "…"}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
         </div>
         {loading ? (
@@ -352,7 +353,7 @@ function OrdersSection({ apiGet, apiPatch }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [exporting, setExporting] = useState(false);
 
   const load = useCallback(() => {
@@ -381,7 +382,7 @@ function OrdersSection({ apiGet, apiPatch }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      {selectedOrderId && <OrderModal orderId={selectedOrderId} apiGet={apiGet} apiPatch={apiPatch} onClose={() => { setSelectedOrderId(null); load(); }} />}
+      {selectedOrder && <OrderModal initialOrder={selectedOrder} apiGet={apiGet} apiPatch={apiPatch} onClose={() => { setSelectedOrder(null); load(); }} />}
 
       {/* Filters */}
       <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "16px 20px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
@@ -421,7 +422,7 @@ function OrdersSection({ apiGet, apiPatch }) {
         })}
       </div>
 
-      {loading ? <div style={{ color: "var(--text-muted)", padding: "24px" }}>Φόρτωση…</div> : <OrdersTable orders={orders} onRowClick={setSelectedOrderId} />}
+      {loading ? <div style={{ color: "var(--text-muted)", padding: "24px" }}>Φόρτωση…</div> : <OrdersTable orders={orders} onRowClick={(id) => setSelectedOrder(orders.find((o) => o.id === id))} />}
 
       <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
         <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ ...btnStyle, opacity: page === 1 ? .4 : 1 }}>← Προηγ.</button>
