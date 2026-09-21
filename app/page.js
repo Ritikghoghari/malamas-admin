@@ -522,63 +522,104 @@ function ProductsSection({ apiGet, apiPatch }) {
   );
 }
 
+/* ── Top Customers Chart (horizontal bars) ── */
+function TopCustomersChart({ data }) {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data.map((d) => d.total), 1);
+  return (
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "20px 24px" }}>
+      <div style={{ fontWeight: 700, fontSize: ".9rem", marginBottom: "18px" }}>Top 10 Πελάτες — Έσοδα</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ width: "20px", color: "var(--text-muted)", fontSize: ".75rem", fontWeight: 700, textAlign: "right", flexShrink: 0 }}>#{i + 1}</span>
+            <span style={{ width: "140px", fontSize: ".82rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}>{d.name}</span>
+            <div style={{ flex: 1, background: "var(--surface-2)", borderRadius: "100px", height: "10px", overflow: "hidden" }}>
+              <div style={{ width: `${(d.total / max) * 100}%`, height: "100%", background: "var(--accent)", borderRadius: "100px", transition: "width .4s" }} />
+            </div>
+            <span style={{ width: "80px", textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: ".83rem", flexShrink: 0 }}>{fmt(d.total)}€</span>
+            <span style={{ color: "var(--text-muted)", fontSize: ".76rem", flexShrink: 0 }}>{d.orders} παρ.</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Customers Section ── */
 function CustomersSection({ apiGet }) {
   const [customers, setCustomers] = useState([]);
+  const [topBySpend, setTopBySpend] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     setLoading(true);
-    apiGet(`section=customers&page=${page}&search=${encodeURIComponent(search)}`).then((d) => {
-      setCustomers(d.customers || []); setLoading(false);
+    apiGet(`section=customers&search=${encodeURIComponent(search)}`).then((d) => {
+      setCustomers(d.customers || []);
+      setTopBySpend(d.topBySpend || []);
+      setLoading(false);
     });
-  }, [page, search, apiGet]);
+  }, [search, apiGet]);
+
+  const displayed = search ? customers : customers.slice(0, 50);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Summary cards */}
+      {!loading && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px" }}>
+          <Stat label="Μοναδικοί Πελάτες" value={customers.length} />
+          <Stat label="Συν. Έσοδα" value={`${fmt(customers.reduce((s, c) => s + c.total_spent, 0))}€`} accent="var(--accent)" />
+          <Stat label="Μέση Δαπάνη/Πελάτη" value={customers.length ? `${fmt(customers.reduce((s, c) => s + c.total_spent, 0) / customers.length)}€` : "—"} />
+          <Stat label="Επαναλαμβ. Πελάτες" value={customers.filter((c) => c.orders > 1).length} />
+        </div>
+      )}
+
+      <TopCustomersChart data={topBySpend} />
+
+      {/* Search + table */}
       <div style={{ display: "flex", gap: "6px" }}>
-        <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (setSearch(searchInput), setPage(1))} placeholder="Αναζήτηση πελάτη..." style={{ ...inputStyle, maxWidth: "280px" }} />
-        <button onClick={() => { setSearch(searchInput); setPage(1); }} style={btnStyle}>🔍</button>
-        {search && <button onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }} style={{ ...btnStyle, background: "var(--surface-2)", color: "var(--text-muted)" }}>✕</button>}
+        <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)} placeholder="Αναζήτηση ονόματος ή email..." style={{ ...inputStyle, maxWidth: "300px" }} />
+        <button onClick={() => setSearch(searchInput)} style={btnStyle}>🔍</button>
+        {search && <button onClick={() => { setSearch(""); setSearchInput(""); }} style={{ ...btnStyle, background: "var(--surface-2)", color: "var(--text-muted)" }}>✕</button>}
       </div>
-      {loading ? <div style={{ color: "var(--text-muted)", padding: "24px" }}>Φόρτωση…</div> : (
+
+      {loading ? <div style={{ color: "var(--text-muted)", padding: "24px" }}>Φόρτωση παραγγελιών…</div> : (
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+          <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", fontSize: ".8rem", color: "var(--text-muted)" }}>
+            {displayed.length} από {customers.length} πελάτες (επισκέπτες + εγγεγραμμένοι)
+          </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".83rem" }}>
               <thead>
                 <tr style={{ background: "var(--surface-2)" }}>
-                  {["Πελάτης", "Email", "Τηλέφωνο", "Παραγγελίες", "Σύνολο Δαπάνης", "Εγγραφή"].map((h) => (
+                  {["Πελάτης", "Email", "Τηλέφωνο", "Πόλη", "Παραγγελίες", "Σύνολο Δαπάνης", "Τελευταία Παρ."].map((h) => (
                     <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {customers.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                {displayed.map((c, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
                     <td style={{ padding: "11px 14px", fontWeight: 600 }}>{c.first_name} {c.last_name}</td>
-                    <td style={{ padding: "11px 14px", color: "var(--text-muted)" }}>{c.email}</td>
-                    <td style={{ padding: "11px 14px", color: "var(--text-muted)" }}>{c.billing?.phone || "—"}</td>
-                    <td style={{ padding: "11px 14px", textAlign: "center", fontWeight: 700 }}>{c.orders_count}</td>
+                    <td style={{ padding: "11px 14px", color: "var(--text-muted)", fontSize: ".8rem" }}>{c.email}</td>
+                    <td style={{ padding: "11px 14px", color: "var(--text-muted)" }}>{c.phone || "—"}</td>
+                    <td style={{ padding: "11px 14px", color: "var(--text-muted)" }}>{c.city || "—"}</td>
+                    <td style={{ padding: "11px 14px", textAlign: "center", fontWeight: 700, color: c.orders > 1 ? "var(--accent)" : "var(--text-primary)" }}>{c.orders}</td>
                     <td style={{ padding: "11px 14px", color: "var(--accent)", fontWeight: 700 }}>{fmt(c.total_spent)}€</td>
-                    <td style={{ padding: "11px 14px", color: "var(--text-muted)", fontSize: ".8rem" }}>{fmtDate(c.date_created, true)}</td>
+                    <td style={{ padding: "11px 14px", color: "var(--text-muted)", fontSize: ".8rem" }}>{fmtDate(c.last_order, true)}</td>
                   </tr>
                 ))}
-                {customers.length === 0 && (
-                  <tr><td colSpan={6} style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)" }}>Δεν βρέθηκαν πελάτες.</td></tr>
+                {displayed.length === 0 && (
+                  <tr><td colSpan={7} style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)" }}>Δεν βρέθηκαν πελάτες.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
       )}
-      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-        <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ ...btnStyle, opacity: page === 1 ? .4 : 1 }}>← Προηγ.</button>
-        <span style={{ color: "var(--text-muted)", fontSize: ".85rem" }}>Σελίδα {page}</span>
-        <button onClick={() => setPage((p) => p + 1)} disabled={customers.length < 20} style={{ ...btnStyle, opacity: customers.length < 20 ? .4 : 1 }}>Επόμ. →</button>
-      </div>
     </div>
   );
 }
