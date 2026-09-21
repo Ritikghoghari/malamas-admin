@@ -175,7 +175,7 @@ function OrderModal({ initialOrder, apiGet, apiPatch, onClose }) {
   async function updateStatus() {
     if (!newStatus || newStatus === order.status) return;
     setUpdatingStatus(true);
-    const res = await apiPatch({ type: "order_status", id: orderId, value: newStatus });
+    const res = await apiPatch({ type: "order_status", id: order.id, value: newStatus });
     if (res.ok) setOrder((o) => ({ ...o, status: res.status }));
     setUpdatingStatus(false);
   }
