@@ -189,6 +189,17 @@ export async function PATCH(req) {
     });
     const data = await res.json();
     if (!res.ok) return Response.json({ error: data.message || "Failed" }, { status: res.status });
+
+    // Trigger instant cache purge on storefront
+    const storeUrl = process.env.STORE_URL;
+    const revalidateSecret = process.env.REVALIDATE_SECRET;
+    if (storeUrl && revalidateSecret) {
+      fetch(`${storeUrl}/api/revalidate`, {
+        method: "POST",
+        headers: { "x-revalidate-secret": revalidateSecret },
+      }).catch(() => {});
+    }
+
     return Response.json({ ok: true, stock_quantity: data.stock_quantity, stock_status: data.stock_status });
   }
 
