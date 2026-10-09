@@ -174,9 +174,11 @@ function OrderModal({ initialOrder, apiGet, apiPatch, onClose }) {
 
   async function updateStatus() {
     if (!newStatus || newStatus === order.status) return;
+    const prevStatus = order.status;
+    setOrder((o) => ({ ...o, status: newStatus })); // optimistic
     setUpdatingStatus(true);
     const res = await apiPatch({ type: "order_status", id: order.id, value: newStatus });
-    if (res.ok) setOrder((o) => ({ ...o, status: res.status }));
+    if (!res.ok) setOrder((o) => ({ ...o, status: prevStatus })); // rollback
     setUpdatingStatus(false);
   }
 
@@ -451,12 +453,14 @@ function ProductsSection({ apiGet, apiPatch }) {
     : products.filter((p) => p.stock_quantity !== null && p.stock_quantity !== undefined && p.stock_quantity <= 5 && p.stock_status === "instock");
 
   async function saveStock(productId) {
-    setSaving(true);
+    const qty = Number(stockVal);
+    const newStatus = qty > 0 ? "instock" : "outofstock";
+    // Optimistic update — instant UI
+    const prev = products;
+    setProducts((ps) => ps.map((p) => p.id === productId ? { ...p, stock_quantity: qty, stock_status: newStatus } : p));
+    setEditingStock(null);
     const res = await apiPatch({ type: "stock", id: productId, value: stockVal });
-    if (res.ok) {
-      setProducts((ps) => ps.map((p) => p.id === productId ? { ...p, stock_quantity: res.stock_quantity, stock_status: res.stock_status } : p));
-    }
-    setEditingStock(null); setSaving(false);
+    if (!res.ok) setProducts(prev); // rollback on error
   }
 
   return (
