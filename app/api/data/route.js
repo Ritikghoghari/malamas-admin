@@ -185,7 +185,7 @@ export async function PATCH(req) {
     const res = await fetch(wcUrl(`products/${id}`), {
       method: "PUT", cache: "no-store",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stock_quantity: Number(value), manage_stock: true }),
+      body: JSON.stringify({ stock_quantity: Number(value), manage_stock: true, stock_status: Number(value) > 0 ? "instock" : "outofstock" }),
     });
     const data = await res.json();
     if (!res.ok) return Response.json({ error: data.message || "Failed" }, { status: res.status });
